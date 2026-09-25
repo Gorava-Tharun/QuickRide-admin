@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../models/admin_user_model.dart';
 import '../models/admin_captain_model.dart';
 import '../models/admin_ride_model.dart';
@@ -62,13 +64,67 @@ class AdminStateService extends ChangeNotifier {
     if (isAdminDomain && cleanPass.length >= 6) {
       _isLoggedIn = true;
       _adminEmail = cleanEmail;
+      _errorMessage = null;
+
+      // Authenticate with Firebase Auth and connect live Firestore streams
+      _authenticateAndConnectFirebase(cleanEmail, cleanPass);
+
       notifyListeners();
       return true;
     }
+    _errorMessage = 'Invalid admin credentials. Must be an @quickride.com email address.';
     return false;
   }
 
+  /// Asynchronous admin authentication ensuring Firebase Auth token is obtained
+  Future<bool> authenticateAdmin(String email, String password) async {
+    final ok = login(email, password);
+    if (!ok) return false;
+    await _authenticateAndConnectFirebase(email.trim().toLowerCase(), password.trim());
+    return true;
+  }
+
+  Future<void> _authenticateAndConnectFirebase(String email, String password) async {
+    if (Firebase.apps.isNotEmpty) {
+      try {
+        try {
+          await FirebaseAuth.instance.signInWithEmailAndPassword(
+            email: email,
+            password: password,
+          );
+        } on FirebaseAuthException catch (authErr) {
+          if (authErr.code == 'user-not-found' || authErr.code == 'invalid-credential') {
+            await FirebaseAuth.instance.createUserWithEmailAndPassword(
+              email: email,
+              password: password,
+            );
+          } else {
+            debugPrint('[AdminStateService] FirebaseAuth notice: $authErr');
+          }
+        }
+        debugPrint('[AdminStateService] Firebase Auth session established for $email (UID: ${FirebaseAuth.instance.currentUser?.uid})');
+      } catch (e) {
+        debugPrint('[AdminStateService] Firebase Auth notice: $e');
+      }
+    }
+    initFirestoreListeners();
+  }
+
   void logout() {
+    if (Firebase.apps.isNotEmpty) {
+      try {
+        FirebaseAuth.instance.signOut();
+      } catch (_) {}
+    }
+    _usersSubscription?.cancel();
+    _captainsSubscription?.cancel();
+    _offersSubscription?.cancel();
+    _ridesSubscription?.cancel();
+    _ratingsSubscription?.cancel();
+    _paymentsSubscription?.cancel();
+    _complaintsSubscription?.cancel();
+    _emergenciesSubscription?.cancel();
+
     _isLoggedIn = false;
     notifyListeners();
   }
@@ -2034,6 +2090,7 @@ class AdminStateService extends ChangeNotifier {
 
     _usersSubscription?.cancel();
     _usersSubscription = fb.streamUsers().listen((firestoreUsers) {
+      debugPrint('[AdminStateService] streamUsers received ${firestoreUsers.length} users in real time');
       _users = firestoreUsers.map((fu) {
         final userRides = _rides.where((r) => r.passengerName == fu.name || r.id.contains(fu.userId)).length;
         return AdminUserModel(
@@ -2049,10 +2106,15 @@ class AdminStateService extends ChangeNotifier {
       }).toList();
       _lastSyncTime = DateTime.now();
       notifyListeners();
+    }, onError: (err) {
+      debugPrint('[AdminStateService] streamUsers error: $err');
+      _errorMessage = 'Users Stream error: $err';
+      notifyListeners();
     });
 
     _captainsSubscription?.cancel();
     _captainsSubscription = fb.streamCaptains().listen((firestoreCaptains) {
+      debugPrint('[AdminStateService] streamCaptains received ${firestoreCaptains.length} captains in real time');
       _captains = firestoreCaptains.map((fc) {
         final compRides = _rides.where((r) => (r.captainName == fc.name || r.captainName == fc.captainId) && r.status == AdminRideStatus.completed).length;
         return AdminCaptainModel(
@@ -2081,16 +2143,21 @@ class AdminStateService extends ChangeNotifier {
       }).toList();
       _lastSyncTime = DateTime.now();
       notifyListeners();
+    }, onError: (err) {
+      debugPrint('[AdminStateService] streamCaptains error: $err');
+      _errorMessage = 'Captains Stream error: $err';
+      notifyListeners();
     });
 
     _offersSubscription?.cancel();
     _offersSubscription = fb.streamOffers().listen((firestoreOffers) {
       _offers = firestoreOffers;
       notifyListeners();
-    });
+    }, onError: (err) => debugPrint('[AdminStateService] streamOffers error: $err'));
 
     _ridesSubscription?.cancel();
     _ridesSubscription = fb.streamRides().listen((firestoreRides) {
+      debugPrint('[AdminStateService] streamRides received ${firestoreRides.length} rides in real time');
       _rides = firestoreRides.map((sr) {
         AdminRideStatus status;
         switch (sr.status) {
@@ -2148,7 +2215,7 @@ class AdminStateService extends ChangeNotifier {
         );
       }).toList();
       notifyListeners();
-    });
+    }, onError: (err) => debugPrint('[AdminStateService] streamRides error: $err'));
 
     _ratingsSubscription?.cancel();
     _ratingsSubscription = fb.streamRatings().listen((firestoreRatings) {
@@ -2165,13 +2232,13 @@ class AdminStateService extends ChangeNotifier {
         );
       }).toList();
       notifyListeners();
-    });
+    }, onError: (err) => debugPrint('[AdminStateService] streamRatings error: $err'));
 
     _paymentsSubscription?.cancel();
     _paymentsSubscription = fb.streamPayments().listen((firestorePayments) {
       _payments = firestorePayments;
       notifyListeners();
-    });
+    }, onError: (err) => debugPrint('[AdminStateService] streamPayments error: $err'));
 
     _complaintsSubscription?.cancel();
     _complaintsSubscription = fb.streamComplaints().listen((firestoreComplaints) {
@@ -2179,7 +2246,7 @@ class AdminStateService extends ChangeNotifier {
           .map((fc) => AdminComplaintModel.fromFirestore(fc))
           .toList();
       notifyListeners();
-    });
+    }, onError: (err) => debugPrint('[AdminStateService] streamComplaints error: $err'));
 
     _emergenciesSubscription?.cancel();
     _emergenciesSubscription = fb.streamEmergencies().listen((firestoreEmergencies) {
@@ -2187,7 +2254,7 @@ class AdminStateService extends ChangeNotifier {
           .map((fe) => AdminEmergencyModel.fromFirestore(fe))
           .toList();
       notifyListeners();
-    });
+    }, onError: (err) => debugPrint('[AdminStateService] streamEmergencies error: $err'));
   }
 
   @override

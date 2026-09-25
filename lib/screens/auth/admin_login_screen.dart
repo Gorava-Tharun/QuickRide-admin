@@ -32,7 +32,7 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
     setState(() => _isLoading = true);
     await Future.delayed(const Duration(milliseconds: 300)); // Smooth UX transition
 
-    final success = AdminStateService().login(
+    final success = await AdminStateService().authenticateAdmin(
       _emailController.text,
       _passwordController.text,
     );
@@ -45,9 +45,10 @@ class _AdminLoginScreenState extends State<AdminLoginScreen> {
         MaterialPageRoute(builder: (_) => const AdminMainScaffold()),
       );
     } else {
+      final msg = AdminStateService().errorMessage ?? 'Invalid admin credentials. Use demo: admin@quickride.com / admin123';
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Invalid admin credentials. Use demo: admin@quickride.com / admin123'),
+        SnackBar(
+          content: Text(msg),
           backgroundColor: AdminColors.danger,
         ),
       );

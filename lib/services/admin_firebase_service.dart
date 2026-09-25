@@ -13,7 +13,7 @@ class AdminFirebaseService {
   bool _isFirebaseAvailable = false;
   String _statusMessage = 'Uninitialized';
 
-  bool get isFirebaseAvailable => _isFirebaseAvailable;
+  bool get isFirebaseAvailable => _isFirebaseAvailable || Firebase.apps.isNotEmpty;
   String get statusMessage => _statusMessage;
 
   /// Safe initialization catching missing config without crashing
@@ -41,7 +41,7 @@ class AdminFirebaseService {
 
   /// Read users collection from Firestore
   Future<List<FirestoreUserModel>> fetchUsers({int limit = 100}) async {
-    if (!_isFirebaseAvailable) return [];
+    if (!isFirebaseAvailable) return [];
     try {
       final snapshot =
           await FirebaseFirestore.instance.collection('users').limit(limit).get();
@@ -56,7 +56,7 @@ class AdminFirebaseService {
 
   /// Real-time stream of users from Firestore
   Stream<List<FirestoreUserModel>> streamUsers({int limit = 100}) {
-    if (!_isFirebaseAvailable) return const Stream.empty();
+    if (!isFirebaseAvailable) return const Stream.empty();
     return FirebaseFirestore.instance
         .collection('users')
         .limit(limit)
@@ -70,7 +70,7 @@ class AdminFirebaseService {
 
   /// Read captains collection from Firestore
   Future<List<FirestoreCaptainModel>> fetchCaptains({int limit = 100}) async {
-    if (!_isFirebaseAvailable) return [];
+    if (!isFirebaseAvailable) return [];
     try {
       final snapshot =
           await FirebaseFirestore.instance.collection('captains').limit(limit).get();
@@ -85,7 +85,7 @@ class AdminFirebaseService {
 
   /// Real-time stream of captains from Firestore
   Stream<List<FirestoreCaptainModel>> streamCaptains({int limit = 100}) {
-    if (!_isFirebaseAvailable) return const Stream.empty();
+    if (!isFirebaseAvailable) return const Stream.empty();
     return FirebaseFirestore.instance
         .collection('captains')
         .limit(limit)
@@ -99,7 +99,7 @@ class AdminFirebaseService {
 
   /// Read rides collection from Firestore
   Future<List<SharedRideModel>> fetchRides({int limit = 100}) async {
-    if (!_isFirebaseAvailable) return [];
+    if (!isFirebaseAvailable) return [];
     try {
       final snapshot =
           await FirebaseFirestore.instance.collection('rides').limit(limit).get();
@@ -114,7 +114,7 @@ class AdminFirebaseService {
 
   /// Real-time stream of rides from Firestore
   Stream<List<SharedRideModel>> streamRides({int limit = 100}) {
-    if (!_isFirebaseAvailable) return const Stream.empty();
+    if (!isFirebaseAvailable) return const Stream.empty();
     return FirebaseFirestore.instance
         .collection('rides')
         .limit(limit)
@@ -128,7 +128,7 @@ class AdminFirebaseService {
 
   /// Read ratings collection from Firestore
   Future<List<FirestoreRatingModel>> fetchRatings({int limit = 100}) async {
-    if (!_isFirebaseAvailable) return [];
+    if (!isFirebaseAvailable) return [];
     try {
       final snapshot =
           await FirebaseFirestore.instance.collection('ratings').limit(limit).get();
@@ -143,7 +143,7 @@ class AdminFirebaseService {
 
   /// Real-time stream of ratings from Firestore
   Stream<List<FirestoreRatingModel>> streamRatings({int limit = 100}) {
-    if (!_isFirebaseAvailable) return const Stream.empty();
+    if (!isFirebaseAvailable) return const Stream.empty();
     return FirebaseFirestore.instance
         .collection('ratings')
         .limit(limit)
@@ -157,7 +157,7 @@ class AdminFirebaseService {
 
   /// Read offers collection from Firestore
   Future<List<FirestoreOfferModel>> fetchOffers({int limit = 50}) async {
-    if (!_isFirebaseAvailable) return [];
+    if (!isFirebaseAvailable) return [];
     try {
       final snapshot =
           await FirebaseFirestore.instance.collection('offers').limit(limit).get();
@@ -172,7 +172,7 @@ class AdminFirebaseService {
 
   /// Real-time stream of offers from Firestore
   Stream<List<FirestoreOfferModel>> streamOffers({int limit = 50}) {
-    if (!_isFirebaseAvailable) return const Stream.empty();
+    if (!isFirebaseAvailable) return const Stream.empty();
     return FirebaseFirestore.instance
         .collection('offers')
         .limit(limit)
@@ -186,7 +186,7 @@ class AdminFirebaseService {
 
   /// Create a new promotional offer in Firestore
   Future<bool> createOffer(FirestoreOfferModel offer) async {
-    if (!_isFirebaseAvailable) return true;
+    if (!isFirebaseAvailable) return true;
     try {
       await FirebaseFirestore.instance
           .collection('offers')
@@ -202,7 +202,7 @@ class AdminFirebaseService {
 
   /// Update an existing offer in Firestore
   Future<bool> updateOffer(FirestoreOfferModel offer) async {
-    if (!_isFirebaseAvailable) return true;
+    if (!isFirebaseAvailable) return true;
     try {
       await FirebaseFirestore.instance
           .collection('offers')
@@ -218,7 +218,7 @@ class AdminFirebaseService {
 
   /// Toggle active state of an offer
   Future<bool> toggleOfferActive(String offerId, bool active) async {
-    if (!_isFirebaseAvailable) return true;
+    if (!isFirebaseAvailable) return true;
     try {
       await FirebaseFirestore.instance
           .collection('offers')
@@ -237,7 +237,7 @@ class AdminFirebaseService {
 
   /// Delete an offer from Firestore
   Future<bool> deleteOffer(String offerId) async {
-    if (!_isFirebaseAvailable) return true;
+    if (!isFirebaseAvailable) return true;
     try {
       await FirebaseFirestore.instance.collection('offers').doc(offerId).delete();
       debugPrint('[Admin Firebase] Offer deleted: $offerId');
@@ -250,7 +250,7 @@ class AdminFirebaseService {
 
   /// Real-time stream of payments from Firestore
   Stream<List<FirestorePaymentModel>> streamPayments({int limit = 100}) {
-    if (!_isFirebaseAvailable) return const Stream.empty();
+    if (!isFirebaseAvailable) return const Stream.empty();
     return FirebaseFirestore.instance
         .collection('payments')
         .limit(limit)
@@ -264,7 +264,7 @@ class AdminFirebaseService {
 
   /// Fetch payments once from Firestore
   Future<List<FirestorePaymentModel>> fetchPayments({int limit = 100}) async {
-    if (!_isFirebaseAvailable) return [];
+    if (!isFirebaseAvailable) return [];
     try {
       final snapshot = await FirebaseFirestore.instance
           .collection('payments')
@@ -281,7 +281,7 @@ class AdminFirebaseService {
 
   /// Update payment status (Admin capability)
   Future<bool> updatePaymentStatus(String paymentId, String status) async {
-    if (!_isFirebaseAvailable) return true;
+    if (!isFirebaseAvailable) return true;
     try {
       await FirebaseFirestore.instance
           .collection('payments')
@@ -306,7 +306,7 @@ class AdminFirebaseService {
     String reason = 'Admin initiated refund',
     String? rideId,
   }) async {
-    if (!_isFirebaseAvailable) return true;
+    if (!isFirebaseAvailable) return true;
     try {
       final now = DateTime.now();
       final refundId = 'REF_${now.millisecondsSinceEpoch}';
@@ -349,7 +349,7 @@ class AdminFirebaseService {
 
   /// Real-time stream of all complaints from Firestore
   Stream<List<FirestoreComplaintModel>> streamComplaints({int limit = 100}) {
-    if (!_isFirebaseAvailable) return const Stream.empty();
+    if (!isFirebaseAvailable) return const Stream.empty();
     return FirebaseFirestore.instance
         .collection('complaints')
         .limit(limit)
@@ -365,7 +365,7 @@ class AdminFirebaseService {
 
   /// Fetch all complaints once from Firestore
   Future<List<FirestoreComplaintModel>> fetchComplaints({int limit = 100}) async {
-    if (!_isFirebaseAvailable) return [];
+    if (!isFirebaseAvailable) return [];
     try {
       final snapshot = await FirebaseFirestore.instance
           .collection('complaints')
@@ -384,7 +384,7 @@ class AdminFirebaseService {
 
   /// Update complaint fields (Status, Priority, Admin Notes, Resolution Summary)
   Future<bool> updateComplaint(String complaintId, Map<String, dynamic> updates) async {
-    if (!_isFirebaseAvailable) return true;
+    if (!isFirebaseAvailable) return true;
     try {
       updates['updatedAt'] = DateTime.now().toIso8601String();
       await FirebaseFirestore.instance
@@ -401,7 +401,7 @@ class AdminFirebaseService {
 
   /// Real-time stream of conversation replies for a complaint
   Stream<List<FirestoreComplaintReplyModel>> streamComplaintReplies(String complaintId) {
-    if (!_isFirebaseAvailable) return const Stream.empty();
+    if (!isFirebaseAvailable) return const Stream.empty();
     return FirebaseFirestore.instance
         .collection('complaints')
         .doc(complaintId)
@@ -418,7 +418,7 @@ class AdminFirebaseService {
 
   /// Add a message reply from Admin to a complaint thread
   Future<bool> addComplaintReply(FirestoreComplaintReplyModel reply) async {
-    if (!_isFirebaseAvailable) return true;
+    if (!isFirebaseAvailable) return true;
     try {
       final batch = FirebaseFirestore.instance.batch();
       final replyRef = FirebaseFirestore.instance
@@ -516,7 +516,7 @@ class AdminFirebaseService {
 
   /// Stream all emergency incidents sorted newest first
   Stream<List<FirestoreEmergencyIncidentModel>> streamEmergencies() {
-    if (!_isFirebaseAvailable) {
+    if (!isFirebaseAvailable) {
       final list = List<FirestoreEmergencyIncidentModel>.from(_localEmergencies);
       list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       return Stream.value(list);
@@ -536,7 +536,7 @@ class AdminFirebaseService {
 
   /// Fetch all emergency incidents once
   Future<List<FirestoreEmergencyIncidentModel>> fetchEmergencies() async {
-    if (!_isFirebaseAvailable) {
+    if (!isFirebaseAvailable) {
       final list = List<FirestoreEmergencyIncidentModel>.from(_localEmergencies);
       list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       return list;
@@ -576,7 +576,7 @@ class AdminFirebaseService {
       );
     }
 
-    if (!_isFirebaseAvailable) {
+    if (!isFirebaseAvailable) {
       debugPrint('[Admin Firebase] Offline mode: emergency status updated locally: $emergencyId -> ${status.name}');
       return true;
     }
@@ -611,7 +611,7 @@ class AdminFirebaseService {
     String? rejectionReason,
     DateTime? verifiedAt,
   }) async {
-    if (!_isFirebaseAvailable) {
+    if (!isFirebaseAvailable) {
       debugPrint('[Admin Firebase] Local fallback: Updated verification for $captainId to $verificationStatus');
       return true;
     }
@@ -660,7 +660,7 @@ class AdminFirebaseService {
 
   /// Stream real-time chat messages for a ride (Admin support inspection)
   Stream<List<FirestoreChatMessageModel>> streamChatMessages(String rideId) {
-    if (!_isFirebaseAvailable) {
+    if (!isFirebaseAvailable) {
       final controller = _getChatController(rideId);
       final messages = _localChatMessages[rideId] ?? [];
       Future.microtask(() {
@@ -696,7 +696,7 @@ class AdminFirebaseService {
 
   /// Fetch one-time chat message list
   Future<List<FirestoreChatMessageModel>> fetchChatMessages(String rideId) async {
-    if (!_isFirebaseAvailable) {
+    if (!isFirebaseAvailable) {
       return List.unmodifiable(_localChatMessages[rideId] ?? []);
     }
 
@@ -722,7 +722,7 @@ class AdminFirebaseService {
     list.add(message);
     _getChatController(message.rideId).add(List.unmodifiable(list));
 
-    if (!_isFirebaseAvailable) return true;
+    if (!isFirebaseAvailable) return true;
 
     try {
       await FirebaseFirestore.instance
