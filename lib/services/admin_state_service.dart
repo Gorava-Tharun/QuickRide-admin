@@ -32,7 +32,9 @@ class AdminStateService extends ChangeNotifier {
   DateTime? get lastSyncTime => _lastSyncTime;
 
   AdminStateService._internal() {
-    _initMockData();
+    if (!AdminFirebaseService().isFirebaseAvailable) {
+      _initMockData();
+    }
     initFirestoreListeners();
     AdminConnectivityService().addReconnectionListener(() async {
       debugPrint('[AdminStateService] Reconnected: re-initializing Firestore listeners');
@@ -2020,205 +2022,171 @@ class AdminStateService extends ChangeNotifier {
     final fb = AdminFirebaseService();
     if (!fb.isFirebaseAvailable) return;
 
+    // Real-time Firestore active: initialize clean state with 0 mock data
+    _users = [];
+    _captains = [];
+    _offers = [];
+    _rides = [];
+    _reviews = [];
+    _payments = [];
+    _complaints = [];
+    _emergencies = [];
+
     _usersSubscription?.cancel();
     _usersSubscription = fb.streamUsers().listen((firestoreUsers) {
-      if (firestoreUsers.isNotEmpty) {
-        final mappedUsers = firestoreUsers.map((fu) {
-          final userRides = _rides.where((r) => r.passengerName == fu.name || r.id.contains(fu.userId)).length;
-          return AdminUserModel(
-            id: fu.userId,
-            name: fu.name,
-            phone: fu.phone,
-            email: fu.email,
-            isActive: fu.status != 'INACTIVE' && fu.status != 'BLOCKED',
-            totalRides: userRides > 0 ? userRides : 1,
-            joinedDate: fu.createdAt,
-            profileImage: fu.profileImage,
-          );
-        }).toList();
-
-        final liveIds = mappedUsers.map((u) => u.id).toSet();
-        final remainingMock = _users.where((u) => !liveIds.contains(u.id)).toList();
-        _users = [...mappedUsers, ...remainingMock];
-        _lastSyncTime = DateTime.now();
-        notifyListeners();
-      }
+      _users = firestoreUsers.map((fu) {
+        final userRides = _rides.where((r) => r.passengerName == fu.name || r.id.contains(fu.userId)).length;
+        return AdminUserModel(
+          id: fu.userId,
+          name: fu.name,
+          phone: fu.phone,
+          email: fu.email,
+          isActive: fu.status != 'INACTIVE' && fu.status != 'BLOCKED',
+          totalRides: userRides,
+          joinedDate: fu.createdAt,
+          profileImage: fu.profileImage,
+        );
+      }).toList();
+      _lastSyncTime = DateTime.now();
+      notifyListeners();
     });
 
     _captainsSubscription?.cancel();
     _captainsSubscription = fb.streamCaptains().listen((firestoreCaptains) {
-      if (firestoreCaptains.isNotEmpty) {
-        final mappedCaptains = firestoreCaptains.map((fc) {
-          final compRides = _rides.where((r) => (r.captainName == fc.name || r.captainName == fc.captainId) && r.status == AdminRideStatus.completed).length;
-          return AdminCaptainModel(
-            id: fc.captainId,
-            name: fc.name,
-            phone: fc.phone,
-            email: fc.email,
-            vehicleNumber: fc.vehicleNumber,
-            vehicleType: fc.vehicleType,
-            licenseNumber: fc.drivingLicenseNumber,
-            isOnline: fc.online,
-            isActive: fc.verificationStatus != 'BLOCKED',
-            rating: fc.rating,
-            completedRides: compRides > 0 ? compRides : 0,
-            joinedDate: fc.createdAt,
-            profileImage: fc.profileImage,
-            vehicleImage: fc.vehicleImage,
-            verificationStatus: fc.verificationStatus,
-            vehicleVerificationStatus: fc.vehicleVerificationStatus,
-            documentsSubmittedAt: fc.documentsSubmittedAt,
-            verifiedAt: fc.verifiedAt,
-            rejectionReason: fc.rejectionReason,
-            drivingLicenseImageUrl: fc.drivingLicenseImageUrl,
-            vehicleDocumentImageUrl: fc.vehicleDocumentImageUrl,
-          );
-        }).toList();
-
-        final liveIds = mappedCaptains.map((c) => c.id).toSet();
-        final remainingMock = _captains.where((c) => !liveIds.contains(c.id)).toList();
-        _captains = [...mappedCaptains, ...remainingMock];
-        _lastSyncTime = DateTime.now();
-        notifyListeners();
-      }
+      _captains = firestoreCaptains.map((fc) {
+        final compRides = _rides.where((r) => (r.captainName == fc.name || r.captainName == fc.captainId) && r.status == AdminRideStatus.completed).length;
+        return AdminCaptainModel(
+          id: fc.captainId,
+          name: fc.name,
+          phone: fc.phone,
+          email: fc.email,
+          vehicleNumber: fc.vehicleNumber,
+          vehicleType: fc.vehicleType,
+          licenseNumber: fc.drivingLicenseNumber,
+          isOnline: fc.online,
+          isActive: fc.verificationStatus != 'BLOCKED',
+          rating: fc.rating,
+          completedRides: compRides,
+          joinedDate: fc.createdAt,
+          profileImage: fc.profileImage,
+          vehicleImage: fc.vehicleImage,
+          verificationStatus: fc.verificationStatus,
+          vehicleVerificationStatus: fc.vehicleVerificationStatus,
+          documentsSubmittedAt: fc.documentsSubmittedAt,
+          verifiedAt: fc.verifiedAt,
+          rejectionReason: fc.rejectionReason,
+          drivingLicenseImageUrl: fc.drivingLicenseImageUrl,
+          vehicleDocumentImageUrl: fc.vehicleDocumentImageUrl,
+        );
+      }).toList();
+      _lastSyncTime = DateTime.now();
+      notifyListeners();
     });
 
     _offersSubscription?.cancel();
     _offersSubscription = fb.streamOffers().listen((firestoreOffers) {
-      if (firestoreOffers.isNotEmpty) {
-        final liveIds = firestoreOffers.map((o) => o.offerId).toSet();
-        final remainingMock = _offers.where((o) => !liveIds.contains(o.offerId)).toList();
-        _offers = [...firestoreOffers, ...remainingMock];
-        notifyListeners();
-      }
+      _offers = firestoreOffers;
+      notifyListeners();
     });
 
     _ridesSubscription?.cancel();
     _ridesSubscription = fb.streamRides().listen((firestoreRides) {
-      if (firestoreRides.isNotEmpty) {
-        final mappedRides = firestoreRides.map((sr) {
-          AdminRideStatus status;
-          switch (sr.status) {
-            case SharedRideStatus.requested:
-              status = AdminRideStatus.requested;
-              break;
-            case SharedRideStatus.accepted:
-              status = AdminRideStatus.accepted;
-              break;
-            case SharedRideStatus.arrived:
-              status = AdminRideStatus.arrived;
-              break;
-            case SharedRideStatus.inProgress:
-              status = AdminRideStatus.inProgress;
-              break;
-            case SharedRideStatus.completed:
-              status = AdminRideStatus.completed;
-              break;
-            case SharedRideStatus.cancelled:
-              status = AdminRideStatus.cancelled;
-              break;
-          }
+      _rides = firestoreRides.map((sr) {
+        AdminRideStatus status;
+        switch (sr.status) {
+          case SharedRideStatus.requested:
+            status = AdminRideStatus.requested;
+            break;
+          case SharedRideStatus.accepted:
+            status = AdminRideStatus.accepted;
+            break;
+          case SharedRideStatus.arrived:
+            status = AdminRideStatus.arrived;
+            break;
+          case SharedRideStatus.inProgress:
+            status = AdminRideStatus.inProgress;
+            break;
+          case SharedRideStatus.completed:
+            status = AdminRideStatus.completed;
+            break;
+          case SharedRideStatus.cancelled:
+            status = AdminRideStatus.cancelled;
+            break;
+        }
 
-          return AdminRideModel(
-            id: sr.rideId,
-            passengerName: sr.userName,
-            passengerPhone: '+91 98450 77123',
-            captainName: sr.captainId ?? 'Unassigned',
-            captainPhone: '+91 98765 43210',
-            pickupAddress: sr.pickup,
-            destinationAddress: sr.destination,
-            pickupLat: sr.pickupLocation['lat'] ?? 12.9716,
-            pickupLng: sr.pickupLocation['lng'] ?? 77.5946,
-            destLat: sr.destinationLocation['lat'] ?? 12.9352,
-            destLng: sr.destinationLocation['lng'] ?? 77.6245,
-            captainLat: sr.captainLocation?['latitude'],
-            captainLng: sr.captainLocation?['longitude'],
-            vehicleType: sr.vehicleType,
-            fare: sr.fare,
-            distanceKm: sr.distance,
-            durationMins: sr.estimatedTime,
-            status: status,
-            timestamp: sr.requestedAt,
-            cancelledBy: sr.cancelledBy,
-            cancellationReason: sr.cancellationReason,
-            cancellationDescription: sr.cancellationDescription,
-            cancellationFee: sr.cancellationFee,
-            refundAmount: sr.refundAmount,
-            refundStatus: sr.refundStatus,
-            refundId: sr.refundId,
-            refundedAt: sr.refundedAt,
-            cancelledAt: sr.cancelledAt,
-            paymentStatus: sr.paymentStatus,
-            paymentMethod: sr.paymentMethod,
-          );
-        }).toList();
-
-        final liveIds = mappedRides.map((r) => r.id).toSet();
-        final remainingMock = _rides.where((r) => !liveIds.contains(r.id)).toList();
-        _rides = [...mappedRides, ...remainingMock];
-        notifyListeners();
-      }
+        return AdminRideModel(
+          id: sr.rideId,
+          passengerName: sr.userName,
+          passengerPhone: '+91 98450 77123',
+          captainName: sr.captainId ?? 'Unassigned',
+          captainPhone: '+91 98765 43210',
+          pickupAddress: sr.pickup,
+          destinationAddress: sr.destination,
+          pickupLat: sr.pickupLocation['lat'] ?? 12.9716,
+          pickupLng: sr.pickupLocation['lng'] ?? 77.5946,
+          destLat: sr.destinationLocation['lat'] ?? 12.9352,
+          destLng: sr.destinationLocation['lng'] ?? 77.6245,
+          captainLat: sr.captainLocation?['latitude'],
+          captainLng: sr.captainLocation?['longitude'],
+          vehicleType: sr.vehicleType,
+          fare: sr.fare,
+          distanceKm: sr.distance,
+          durationMins: sr.estimatedTime,
+          status: status,
+          timestamp: sr.requestedAt,
+          cancelledBy: sr.cancelledBy,
+          cancellationReason: sr.cancellationReason,
+          cancellationDescription: sr.cancellationDescription,
+          cancellationFee: sr.cancellationFee,
+          refundAmount: sr.refundAmount,
+          refundStatus: sr.refundStatus,
+          refundId: sr.refundId,
+          refundedAt: sr.refundedAt,
+          cancelledAt: sr.cancelledAt,
+          paymentStatus: sr.paymentStatus,
+          paymentMethod: sr.paymentMethod,
+        );
+      }).toList();
+      notifyListeners();
     });
 
     _ratingsSubscription?.cancel();
     _ratingsSubscription = fb.streamRatings().listen((firestoreRatings) {
-      if (firestoreRatings.isNotEmpty) {
-        final mappedReviews = firestoreRatings.map((r) {
-          final isUserRating = r.ratedBy == 'user';
-          return AdminReviewModel(
-            id: r.ratingId,
-            userName: isUserRating ? 'User (${r.userId})' : 'Captain (${r.captainId})',
-            captainName: isUserRating ? 'Captain (${r.captainId})' : 'User (${r.userId})',
-            rating: r.rating,
-            comment: r.review.isNotEmpty ? r.review : 'No written comments',
-            date: r.createdAt,
-            rideId: r.rideId,
-          );
-        }).toList();
-
-        final liveIds = mappedReviews.map((rev) => rev.id).toSet();
-        final remainingMock = _reviews.where((rev) => !liveIds.contains(rev.id)).toList();
-        _reviews = [...mappedReviews, ...remainingMock];
-        notifyListeners();
-      }
+      _reviews = firestoreRatings.map((r) {
+        final isUserRating = r.ratedBy == 'user';
+        return AdminReviewModel(
+          id: r.ratingId,
+          userName: isUserRating ? 'User (${r.userId})' : 'Captain (${r.captainId})',
+          captainName: isUserRating ? 'Captain (${r.captainId})' : 'User (${r.userId})',
+          rating: r.rating,
+          comment: r.review.isNotEmpty ? r.review : 'No written comments',
+          date: r.createdAt,
+          rideId: r.rideId,
+        );
+      }).toList();
+      notifyListeners();
     });
 
     _paymentsSubscription?.cancel();
     _paymentsSubscription = fb.streamPayments().listen((firestorePayments) {
-      if (firestorePayments.isNotEmpty) {
-        final liveIds = firestorePayments.map((p) => p.paymentId).toSet();
-        final remainingMock = _payments.where((p) => !liveIds.contains(p.paymentId)).toList();
-        _payments = [...firestorePayments, ...remainingMock];
-        notifyListeners();
-      }
+      _payments = firestorePayments;
+      notifyListeners();
     });
 
     _complaintsSubscription?.cancel();
     _complaintsSubscription = fb.streamComplaints().listen((firestoreComplaints) {
-      if (firestoreComplaints.isNotEmpty) {
-        final mappedComplaints = firestoreComplaints
-            .map((fc) => AdminComplaintModel.fromFirestore(fc))
-            .toList();
-        final liveIds = mappedComplaints.map((c) => c.id).toSet();
-        final remainingMock =
-            _complaints.where((c) => !liveIds.contains(c.id)).toList();
-        _complaints = [...mappedComplaints, ...remainingMock];
-        notifyListeners();
-      }
+      _complaints = firestoreComplaints
+          .map((fc) => AdminComplaintModel.fromFirestore(fc))
+          .toList();
+      notifyListeners();
     });
 
     _emergenciesSubscription?.cancel();
     _emergenciesSubscription = fb.streamEmergencies().listen((firestoreEmergencies) {
-      if (firestoreEmergencies.isNotEmpty) {
-        final mappedEmergencies = firestoreEmergencies
-            .map((fe) => AdminEmergencyModel.fromFirestore(fe))
-            .toList();
-        final liveIds = mappedEmergencies.map((e) => e.emergencyId).toSet();
-        final remainingMock =
-            _emergencies.where((e) => !liveIds.contains(e.emergencyId)).toList();
-        _emergencies = [...mappedEmergencies, ...remainingMock];
-        notifyListeners();
-      }
+      _emergencies = firestoreEmergencies
+          .map((fe) => AdminEmergencyModel.fromFirestore(fe))
+          .toList();
+      notifyListeners();
     });
   }
 

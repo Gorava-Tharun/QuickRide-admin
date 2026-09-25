@@ -154,30 +154,25 @@ class AdminDashboardScreen extends StatelessWidget {
                         borderRadius: BorderRadius.circular(AdminDimensions.radiusMedium),
                         border: Border.all(color: AdminColors.border),
                       ),
-                      child: Row(
+                      child: const Row(
                         children: [
-                          const Icon(Icons.info_outline_rounded, color: AdminColors.info, size: 28),
-                          const SizedBox(width: 12),
-                          const Expanded(
+                          Icon(Icons.cloud_done_rounded, color: AdminColors.primary, size: 28),
+                          SizedBox(width: 12),
+                          Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Database is Empty',
+                                  'Real-Time Firebase Firestore Connected',
                                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                                 ),
                                 SizedBox(height: 2),
                                 Text(
-                                  'No user, captain, or ride records found in Firestore. Mock data can be restored anytime.',
+                                  'Registered users, captains, rides, and transactions will appear here in real time as activity occurs.',
                                   style: TextStyle(fontSize: 12, color: AdminColors.textSecondary),
                                 ),
                               ],
                             ),
-                          ),
-                          ElevatedButton.icon(
-                            onPressed: () => service.resetMockData(),
-                            icon: const Icon(Icons.restore_rounded, size: 16),
-                            label: const Text('Seed Demo Data'),
                           ),
                         ],
                       ),
